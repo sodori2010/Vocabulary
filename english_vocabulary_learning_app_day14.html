@@ -87,13 +87,13 @@
                 </button>
             </div>
 
-            <!-- 뜻 영역 -->
+            <!-- 뜻 영역 (hidden 추가하여 완전히 안 보이게 가림) -->
             <div class="w-full bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 sm:p-6 text-center mb-6 sm:mb-8 shadow-xl backdrop-blur-sm">
                 <div class="flex justify-between items-center mb-2">
                     <span class="text-xs uppercase tracking-wider text-slate-400 font-bold">뜻 (Meaning)</span>
                     <span id="meaning-status-text" class="text-xs text-slate-400 font-semibold">버튼을 누르면 뜻이 공개됩니다</span>
                 </div>
-                <div id="meaning-display" class="text-xl sm:text-2xl md:text-3xl font-bold text-slate-500 tracking-wide py-2 blur-sm select-none transition-all duration-300">
+                <div id="meaning-display" class="text-xl sm:text-2xl md:text-3xl font-bold text-slate-500 tracking-wide py-2 blur-sm select-none transition-all duration-300 hidden">
                     ???
                 </div>
             </div>
@@ -352,7 +352,8 @@
             
             const meaningEl = document.getElementById('meaning-display');
             meaningEl.innerText = currentItem.meaning;
-            meaningEl.classList.add('blur-sm', 'select-none', 'text-slate-500');
+            // hidden 클래스가 다시 적용되어 평소에 숨겨지도록 처리
+            meaningEl.classList.add('blur-sm', 'select-none', 'text-slate-500', 'hidden');
             meaningEl.classList.remove('text-indigo-300', 'text-emerald-400');
             
             document.getElementById('meaning-status-text').innerText = '버튼을 누르면 뜻이 공개됩니다';
@@ -380,14 +381,14 @@
             const currentItem = vocabData[currentIndex];
 
             if (isMeaningRevealed) {
-                meaningEl.classList.remove('blur-sm', 'select-none', 'text-slate-500');
+                meaningEl.classList.remove('blur-sm', 'select-none', 'text-slate-500', 'hidden');
                 meaningEl.classList.add('text-indigo-300');
                 document.getElementById('meaning-status-text').innerText = '뜻이 공개되었습니다';
                 
-                // [기능 추가] 뜻 보기 실행 시 한국어 음성으로 뜻 읽어주기
+                // 뜻 보기 실행 시 한국어 음성으로 뜻 읽어주기
                 speakKoreanText(currentItem.meaning);
             } else {
-                meaningEl.classList.add('blur-sm', 'select-none', 'text-slate-500');
+                meaningEl.classList.add('blur-sm', 'select-none', 'text-slate-500', 'hidden');
                 meaningEl.classList.remove('text-indigo-300');
                 document.getElementById('meaning-status-text').innerText = '버튼을 누르면 뜻이 공개됩니다';
             }
@@ -458,7 +459,6 @@
             }
         }
 
-        // [기능 추가] 한국어 음성 출력 함수
         function speakKoreanText(text) {
             if ('speechSynthesis' in window) {
                 const utterance = new SpeechSynthesisUtterance(text);
@@ -488,7 +488,7 @@
             userResults[currentIndex] = isCompleted;
 
             const meaningEl = document.getElementById('meaning-display');
-            meaningEl.classList.remove('blur-sm', 'select-none', 'text-slate-500', 'text-indigo-300');
+            meaningEl.classList.remove('blur-sm', 'select-none', 'text-slate-500', 'text-indigo-300', 'hidden');
             meaningEl.classList.add('text-emerald-400');
             
             document.getElementById('meaning-status-text').innerText = isCompleted ? '✅ 완료로 체크되었습니다' : '❌ 미암기로 체크되었습니다';
@@ -602,7 +602,7 @@
 
         function filterAllWords() {
             const query = document.getElementById('word-search-input').value.toLowerCase().trim();
-            const filtered = originalVocBData = originalVocabData.filter(item => 
+            const filtered = originalVocabData.filter(item => 
                 item.word.toLowerCase().includes(query) || item.meaning.includes(query)
             );
             renderAllWordsList(filtered);
