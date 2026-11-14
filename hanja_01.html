@@ -1,0 +1,1126 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>한자 낱말카드 학습기</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Noto Sans KR (UI) & Noto Serif KR (한자 표시용 명조체) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800&family=Noto+Serif+KR:wght@600;700;900&display=swap" rel="stylesheet" />
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans KR"', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            hanja: ['"Noto Serif KR"', '"AppleMyungjo"', '"Nanum Myeongjo"', 'Batang', 'serif'],
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    /* 아이폰 사파리 등 모바일 뷰포트 높이 대응 및 부드러운 터치 처리 */
+    body {
+      min-height: 100dvh;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .app-container {
+      min-height: 100dvh;
+    }
+    /* 카드 전환 시 은은한 등장 효과 */
+    @keyframes cardPop {
+      0% {
+        opacity: 0.4;
+        transform: translateY(6px) scale(0.99);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .animate-card {
+      animation: cardPop 0.22s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    /* 커스텀 스크롤바 (목록 미리보기용) */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+  </style>
+</head>
+<body class="bg-stone-100 text-slate-900 font-sans antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+  <div class="app-container max-w-lg mx-auto flex flex-col justify-between bg-stone-50 shadow-xl sm:my-4 sm:min-h-[calc(100dvh-2rem)] sm:rounded-3xl border border-stone-200/80 overflow-hidden">
+
+    <!-- ==================== 1. 시작 및 번호 선택 화면 ==================== -->
+    <section id="start-screen" class="flex-1 flex flex-col p-5 sm:p-7 justify-between">
+      <div>
+        <!-- 상단 타이틀 영역 -->
+        <div class="text-center pt-2 pb-5">
+          <span class="inline-block px-3 py-1 rounded-full bg-indigo-100 text-indigo-700 text-xs font-bold tracking-wide mb-2">
+            총 50자 수록
+          </span>
+          <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            한자 낱말카드 암기장
+          </h1>
+          <p class="text-sm text-slate-500 mt-1.5">
+            원하는 번호를 선택해 처음이나 중간부터 학습하세요
+          </p>
+        </div>
+
+        <!-- 시작 번호 선택 카드 -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-stone-200/90 space-y-4">
+          <div>
+            <label for="start-number-select" class="block text-sm font-bold text-slate-700 mb-2">
+              시작할 번호 선택 (1번 ~ 50번)
+            </label>
+            <div class="flex items-center gap-2">
+              <select
+                id="start-number-select"
+                class="flex-1 bg-stone-50 border border-stone-300 text-slate-900 text-base font-semibold rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+              >
+                <!-- JS로 1~50번 옵션 동적 생성 -->
+              </select>
+              <button
+                type="button"
+                id="reset-to-one-btn"
+                class="px-3.5 py-3 rounded-xl bg-stone-100 hover:bg-stone-200 active:scale-95 text-slate-700 text-sm font-semibold transition whitespace-nowrap"
+                title="1번으로 초기화"
+              >
+                1번부터
+              </button>
+            </div>
+          </div>
+
+          <!-- 학습 순서 옵션 (순차 / 무작위) -->
+          <div class="flex items-center justify-between pt-2 border-t border-stone-100">
+            <div>
+              <span class="text-sm font-bold text-slate-700 block">무작위 섞기 모드</span>
+              <span class="text-xs text-slate-400">선택한 번호부터 끝까지 순서를 섞습니다</span>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="shuffle-toggle" class="sr-only peer" />
+              <div class="w-12 h-7 bg-stone-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-stone-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- 전체 한자 목록 빠른 선택 그리드 (중간 번호 찾기용) -->
+        <div class="mt-5">
+          <div class="flex items-center justify-between mb-2 px-1">
+            <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">전체 한자 번호표 (클릭 시 시작 번호 지정)</span>
+            <span id="selected-preview-badge" class="text-xs font-bold text-indigo-600">현재 선택: 1번 (㚆)</span>
+          </div>
+          <div
+            id="hanja-grid-list"
+            class="grid grid-cols-5 gap-2 max-h-56 sm:max-h-64 overflow-y-auto p-2 bg-white rounded-2xl border border-stone-200/90 shadow-inner"
+          >
+            <!-- JS로 50개 한자 버튼 동적 생성 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 학습 시작 버튼 -->
+      <div class="pt-5">
+        <button
+          id="start-study-btn"
+          type="button"
+          class="w-full py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-lg shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2"
+        >
+          <span id="start-btn-label">1번부터 학습 시작</span>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+        </button>
+      </div>
+    </section>
+
+
+    <!-- ==================== 2. 낱말카드 학습 화면 ==================== -->
+    <section id="study-screen" class="hidden flex-1 flex flex-col justify-between p-4 sm:p-6">
+      <!-- 상단 바: 진행도, 중간 번호 이동, 종료 버튼 -->
+      <header class="flex items-center justify-between gap-2 pb-3">
+        <!-- 현재 번호 및 빠른 이동 드롭다운 -->
+        <div class="flex items-center gap-2">
+          <div class="relative">
+            <select
+              id="ingame-jump-select"
+              aria-label="번호 바로 이동"
+              class="appearance-none bg-white border border-stone-300 text-slate-800 font-bold text-sm rounded-xl pl-3 pr-8 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+            >
+              <!-- JS로 동적 업데이트 -->
+            </select>
+            <div class="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-slate-500">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </div>
+          <span id="progress-counter" class="text-xs sm:text-sm font-semibold text-slate-500">
+            1 / 50
+          </span>
+        </div>
+
+        <!-- 종료 버튼 -->
+        <button
+          id="quit-study-btn"
+          type="button"
+          class="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 active:scale-95 text-rose-600 border border-rose-200/80 text-sm font-bold transition flex items-center gap-1.5"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+          </svg>
+          <span>종료</span>
+        </button>
+      </header>
+
+      <!-- 진행률 바 -->
+      <div class="w-full h-1.5 bg-stone-200 rounded-full overflow-hidden mb-4">
+        <div id="progress-bar-fill" class="h-full bg-indigo-600 transition-all duration-300 rounded-full" style="width: 2%;"></div>
+      </div>
+
+      <!-- 중앙 한자 플래시카드 영역 -->
+      <main id="flashcard-box" class="flex-1 flex flex-col justify-center my-1">
+        <div class="bg-white rounded-3xl border border-stone-200/90 shadow-md p-6 sm:p-8 flex flex-col items-center justify-between min-h-[340px] sm:min-h-[390px] relative">
+          
+          <!-- 카드 좌상단 원본 번호 뱃지 -->
+          <div class="w-full flex items-center justify-between">
+            <span id="card-original-number" class="px-3 py-1 rounded-lg bg-stone-100 text-stone-600 text-xs font-bold">
+              No. 1
+            </span>
+            <span id="shuffle-badge" class="hidden px-2.5 py-1 rounded-lg bg-amber-50 text-amber-700 text-xs font-semibold border border-amber-200/60">
+              무작위 순서
+            </span>
+          </div>
+
+          <!-- 큰 한자 글자 표시 영역 -->
+          <div class="my-auto py-4 flex items-center justify-center w-full">
+            <div
+              id="hanja-character"
+              class="font-hanja text-[7.5rem] sm:text-[9rem] leading-none font-bold text-slate-900 select-none tracking-tight"
+            >
+              㚆
+            </div>
+          </div>
+
+          <!-- 하단 뜻 / 음 가림판 (직접 터치해도 열림) -->
+          <div class="w-full grid grid-cols-2 gap-3 pt-2">
+            <!-- 뜻 (훈) 박스 -->
+            <button
+              type="button"
+              id="meaning-card-slot"
+              class="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 bg-stone-50/80 hover:border-amber-300 py-4 px-2 min-h-[84px] transition-all focus:outline-none"
+            >
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">뜻 (훈)</span>
+              <span id="meaning-hidden-placeholder" class="text-sm font-semibold text-stone-400 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+                가려짐
+              </span>
+              <span id="meaning-text" class="hidden text-xl sm:text-2xl font-extrabold text-amber-700 break-keep text-center">
+                돌아올
+              </span>
+            </button>
+
+            <!-- 음 (소리) 박스 -->
+            <button
+              type="button"
+              id="reading-card-slot"
+              class="group relative flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-stone-200 bg-stone-50/80 hover:border-emerald-300 py-4 px-2 min-h-[84px] transition-all focus:outline-none"
+            >
+              <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">음 (소리)</span>
+              <span id="reading-hidden-placeholder" class="text-sm font-semibold text-stone-400 flex items-center gap-1">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                </svg>
+                가려짐
+              </span>
+              <span id="reading-text" class="hidden text-xl sm:text-2xl font-extrabold text-emerald-700 break-keep text-center">
+                복
+              </span>
+            </button>
+          </div>
+
+        </div>
+      </main>
+
+      <!-- 하단 조작 버튼 영역 (엄지손가락으로 누르기 쉬운 큰 버튼 배치) -->
+      <footer class="pt-4 space-y-3">
+        <!-- 1행: 뜻 버튼 / 음 버튼 -->
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            id="toggle-meaning-btn"
+            type="button"
+            class="py-4 px-4 rounded-2xl bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white font-bold text-lg shadow-md shadow-amber-500/20 transition flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M10 12a2 2 0 100-4 2 2 0 000 4z" />
+              <path fill-rule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clip-rule="evenodd" />
+            </svg>
+            <span id="meaning-btn-label">뜻 보기</span>
+          </button>
+
+          <button
+            id="toggle-reading-btn"
+            type="button"
+            class="py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-lg shadow-md shadow-emerald-600/20 transition flex items-center justify-center gap-2"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.707.707L4.586 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.586l3.707-3.707a1 1 0 011.09-.217zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z" clip-rule="evenodd" />
+            </svg>
+            <span id="reading-btn-label">음 보기</span>
+          </button>
+        </div>
+
+        <!-- 2행: 이전 버튼 (보조) + 다음 버튼 (메인) -->
+        <div class="flex gap-3">
+          <button
+            id="prev-card-btn"
+            type="button"
+            class="px-4 py-4 rounded-2xl bg-stone-200 hover:bg-stone-300 disabled:opacity-40 disabled:pointer-events-none active:scale-[0.98] text-slate-700 font-bold text-base transition"
+            aria-label="이전 한자"
+          >
+            이전
+          </button>
+
+          <button
+            id="next-card-btn"
+            type="button"
+            class="flex-1 py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.98] text-white font-bold text-lg shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2"
+          >
+            <span id="next-btn-label">다음 한자</span>
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+            </svg>
+          </button>
+        </div>
+      </footer>
+    </section>
+
+
+    <!-- ==================== 3. 학습 종료 / 완료 요약 화면 ==================== -->
+    <section id="summary-screen" class="hidden flex-1 flex flex-col justify-between p-6 sm:p-8 text-center">
+      <div class="my-auto space-y-6">
+        <div class="w-20 h-20 mx-auto rounded-3xl bg-indigo-100 text-indigo-600 flex items-center justify-center shadow-inner">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        </div>
+
+        <div>
+          <h2 id="summary-title" class="text-2xl sm:text-3xl font-extrabold text-slate-900">
+            학습을 종료했습니다
+          </h2>
+          <p id="summary-subtitle" class="text-slate-500 mt-2 text-sm sm:text-base">
+            오늘도 한자 암기 수고하셨습니다!
+          </p>
+        </div>
+
+        <!-- 학습 통계 요약 카드 -->
+        <div class="bg-white rounded-2xl p-5 border border-stone-200 shadow-sm space-y-3 text-left">
+          <div class="flex justify-between items-center py-1 border-b border-stone-100">
+            <span class="text-sm text-slate-500 font-medium">학습 시작 위치</span>
+            <span id="summary-start-info" class="text-sm font-bold text-slate-800">1번 (㚆)</span>
+          </div>
+          <div class="flex justify-between items-center py-1 border-b border-stone-100">
+            <span class="text-sm text-slate-500 font-medium">마지막 확인 한자</span>
+            <span id="summary-last-info" class="text-sm font-bold text-slate-800">10번 (乙)</span>
+          </div>
+          <div class="flex justify-between items-center py-1">
+            <span class="text-sm text-slate-500 font-medium">확인한 카드 수</span>
+            <span id="summary-count-info" class="text-base font-extrabold text-indigo-600">총 10개</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 하단 재시작 / 번호 선택 이동 버튼 -->
+      <div class="space-y-3 pt-6">
+        <button
+          id="continue-from-last-btn"
+          type="button"
+          class="w-full py-4 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] text-white font-bold text-base shadow-lg shadow-indigo-600/20 transition"
+        >
+          이어서 학습하기
+        </button>
+        <div class="grid grid-cols-2 gap-3">
+          <button
+            id="restart-first-btn"
+            type="button"
+            class="py-3.5 px-4 rounded-2xl bg-stone-200 hover:bg-stone-300 active:scale-[0.98] text-slate-800 font-bold text-sm transition"
+          >
+            1번부터 다시
+          </button>
+          <button
+            id="back-to-home-btn"
+            type="button"
+            class="py-3.5 px-4 rounded-2xl bg-white hover:bg-stone-100 active:scale-[0.98] text-slate-800 border border-stone-300 font-bold text-sm transition"
+          >
+            번호 선택 화면
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // 1. 사용자 제공 한자 n개 원본 데이터셋
+    const HANJA_DATA = [
+      { id: 1, hanja: '㚆', meaning: '돌아올', reading: '복' },
+      { id: 2, hanja: '一', meaning: '한', reading: '일' },
+      { id: 3, hanja: '三', meaning: '석', reading: '삼' },
+      { id: 4, hanja: '上', meaning: '윗', reading: '상' },
+      { id: 5, hanja: '下', meaning: '아래', reading: '하' },
+      { id: 6, hanja: '不', meaning: '아닐', reading: '불' },
+      { id: 7, hanja: '丘', meaning: '언덕', reading: '구' },
+      { id: 8, hanja: '中', meaning: '가운데', reading: '중' },
+      { id: 9, hanja: '之', meaning: '갈', reading: '지' },
+      { id: 10, hanja: '乙', meaning: '새', reading: '을' },
+      { id: 11, hanja: '九', meaning: '아홉', reading: '구' },
+      { id: 12, hanja: '也', meaning: '어조사', reading: '야' },
+      { id: 13, hanja: '事', meaning: '일', reading: '사' },
+      { id: 14, hanja: '于', meaning: '어조사', reading: '우' },
+      { id: 15, hanja: '井', meaning: '우물', reading: '정' },
+      { id: 16, hanja: '亡', meaning: '망할', reading: '망' },
+      { id: 17, hanja: '交', meaning: '사귈', reading: '교' },
+      { id: 18, hanja: '亦', meaning: '또', reading: '역' },
+      { id: 19, hanja: '仁', meaning: '어질', reading: '인' },
+      { id: 20, hanja: '今', meaning: '이제', reading: '금' },
+      { id: 21, hanja: '他', meaning: '다를', reading: '타' },
+      { id: 22, hanja: '代', meaning: '대신할', reading: '대' },
+      { id: 23, hanja: '令', meaning: '하여금', reading: '령(영)' },
+      { id: 24, hanja: '伯', meaning: '맏', reading: '백' },
+      { id: 25, hanja: '位', meaning: '자리', reading: '위' },
+      { id: 26, hanja: '何', meaning: '어찌', reading: '하' },
+      { id: 27, hanja: '來', meaning: '올', reading: '래(내)' },
+      { id: 28, hanja: '便', meaning: '편할', reading: '편' },
+      { id: 29, hanja: '俗', meaning: '풍속', reading: '속' },
+      { id: 30, hanja: '信', meaning: '믿을', reading: '신' },
+      { id: 31, hanja: '傳', meaning: '전할', reading: '전' },
+      { id: 32, hanja: '價', meaning: '값', reading: '가' },
+      { id: 33, hanja: '兄', meaning: '형', reading: '형' },
+      { id: 34, hanja: '先', meaning: '먼저', reading: '선' },
+      { id: 35, hanja: '光', meaning: '빛', reading: '광' },
+      { id: 36, hanja: '克', meaning: '이길', reading: '극' },
+      { id: 37, hanja: '內', meaning: '안', reading: '내' },
+      { id: 38, hanja: '其', meaning: '그', reading: '기' },
+      { id: 39, hanja: '冬', meaning: '겨울', reading: '동' },
+      { id: 40, hanja: '凊', meaning: '서늘할', reading: '정(청)' },
+      { id: 41, hanja: '初', meaning: '처음', reading: '초' },
+      { id: 42, hanja: '別', meaning: '나눌', reading: '별' },
+      { id: 43, hanja: '刮', meaning: '깎을', reading: '괄' },
+      { id: 44, hanja: '刻', meaning: '새길', reading: '각' },
+      { id: 45, hanja: '則', meaning: '곧', reading: '즉' },
+      { id: 46, hanja: '前', meaning: '앞', reading: '전' },
+      { id: 47, hanja: '劍', meaning: '칼', reading: '검' },
+      { id: 48, hanja: '動', meaning: '움직일', reading: '동' },
+      { id: 49, hanja: '勝', meaning: '이길', reading: '승' },
+      { id: 50, hanja: '勿', meaning: '말다', reading: '물' },
+      { id: 51, hanja: '匹', meaning: '짝', reading: '필' },
+      { id: 52, hanja: '南', meaning: '남쪽', reading: '남' },
+      { id: 53, hanja: '危', meaning: '위태할', reading: '위' },
+      { id: 54, hanja: '卵', meaning: '알', reading: '란(난)' },
+      { id: 55, hanja: '厯', meaning: '지낼', reading: '력(역)' },
+      { id: 56, hanja: '又', meaning: '또', reading: '우' },
+      { id: 57, hanja: '及', meaning: '미칠', reading: '급' },
+      { id: 58, hanja: '友', meaning: '벗', reading: '우' },
+      { id: 59, hanja: '反', meaning: '돌이킬', reading: '반' },
+      { id: 60, hanja: '口', meaning: '입', reading: '구' },
+      { id: 61, hanja: '古', meaning: '옛', reading: '고' },
+      { id: 62, hanja: '句', meaning: '글귀', reading: '구' },
+      { id: 63, hanja: '只', meaning: '다만', reading: '지' },
+      { id: 64, hanja: '可', meaning: '옳을', reading: '가' },
+      { id: 65, hanja: '史', meaning: '역사', reading: '사' },
+      { id: 66, hanja: '各', meaning: '각각', reading: '각' },
+      { id: 67, hanja: '同', meaning: '한가지', reading: '동' },
+      { id: 68, hanja: '名', meaning: '이름', reading: '명' },
+      { id: 69, hanja: '吐', meaning: '토할', reading: '토' },
+      { id: 70, hanja: '君', meaning: '임금', reading: '군' },
+      { id: 71, hanja: '吾', meaning: '나', reading: '오' },
+      { id: 72, hanja: '呑', meaning: '삼킬', reading: '탄' },
+      { id: 73, hanja: '命', meaning: '목숨', reading: '명' },
+      { id: 74, hanja: '和', meaning: '화할', reading: '화' },
+      { id: 75, hanja: '哀', meaning: '슬플', reading: '애' },
+      { id: 76, hanja: '哺', meaning: '먹일', reading: '포' },
+      { id: 77, hanja: '善', meaning: '착할', reading: '선' },
+      { id: 78, hanja: '喜', meaning: '기쁠', reading: '희' },
+      { id: 79, hanja: '嘆', meaning: '탄식할', reading: '탄' },
+      { id: 80, hanja: '器', meaning: '그릇', reading: '기' },
+      { id: 81, hanja: '囊', meaning: '주머니', reading: '낭' },
+      { id: 82, hanja: '四', meaning: '넉', reading: '사' },
+      { id: 83, hanja: '土', meaning: '흙', reading: '토' },
+      { id: 84, hanja: '在', meaning: '있을', reading: '재' },
+      { id: 85, hanja: '坐', meaning: '앉을', reading: '좌' },
+      { id: 86, hanja: '基', meaning: '터', reading: '기' },
+      { id: 87, hanja: '堂', meaning: '집', reading: '당' },
+      { id: 88, hanja: '堤', meaning: '둑', reading: '제' },
+      { id: 89, hanja: '夏', meaning: '여름', reading: '하' },
+      { id: 90, hanja: '外', meaning: '바깥', reading: '외' },
+      { id: 91, hanja: '多', meaning: '많을', reading: '다' },
+      { id: 92, hanja: '夢', meaning: '꿈', reading: '몽' },
+      { id: 93, hanja: '大', meaning: '클', reading: '대' },
+      { id: 94, hanja: '夫', meaning: '지아비', reading: '부' },
+      { id: 95, hanja: '女', meaning: '여자', reading: '녀(여)' },
+      { id: 96, hanja: '如', meaning: '같을', reading: '여' },
+      { id: 97, hanja: '始', meaning: '처음', reading: '시' },
+      { id: 98, hanja: '姑', meaning: '시어머니', reading: '고' },
+      { id: 99, hanja: '婦', meaning: '며느리', reading: '부' },
+      { id: 100, hanja: '字', meaning: '글자', reading: '자' },
+      { id: 101, hanja: '存', meaning: '있을', reading: '존' },
+      { id: 102, hanja: '孝', meaning: '효도', reading: '효' },
+      { id: 103, hanja: '孟', meaning: '맏', reading: '맹' },
+      { id: 104, hanja: '學', meaning: '배울', reading: '학' },
+      { id: 105, hanja: '安', meaning: '편안', reading: '안' },
+      { id: 106, hanja: '定', meaning: '정할', reading: '정' },
+      { id: 107, hanja: '察', meaning: '살필', reading: '찰' },
+      { id: 108, hanja: '實', meaning: '열매', reading: '실' },
+      { id: 109, hanja: '寶', meaning: '보배', reading: '보' },
+      { id: 110, hanja: '對', meaning: '대할', reading: '대' },
+      { id: 111, hanja: '就', meaning: '나아갈', reading: '취' },
+      { id: 112, hanja: '尺', meaning: '자', reading: '척' },
+      { id: 113, hanja: '尾', meaning: '꼬리', reading: '미' },
+      { id: 114, hanja: '山', meaning: '산', reading: '산' },
+      { id: 115, hanja: '己', meaning: '몸', reading: '기' },
+      { id: 116, hanja: '已', meaning: '이미', reading: '이' },
+      { id: 117, hanja: '市', meaning: '시장', reading: '시' },
+      { id: 118, hanja: '年', meaning: '해', reading: '년(연)' },
+      { id: 119, hanja: '幸', meaning: '다행', reading: '행' },
+      { id: 120, hanja: '式', meaning: '법', reading: '식' },
+      { id: 121, hanja: '弟', meaning: '아우', reading: '제' },
+      { id: 122, hanja: '張', meaning: '베풀', reading: '장' },
+      { id: 123, hanja: '強', meaning: '강할', reading: '강' },
+      { id: 124, hanja: '彌', meaning: '활', reading: '부릴', reading: '미' },
+      { id: 125, hanja: '形', meaning: '모양', reading: '형' },
+      { id: 126, hanja: '往', meaning: '갈', reading: '왕' },
+      { id: 127, hanja: '律', meaning: '법칙', reading: '률(율)' },
+      { id: 128, hanja: '後', meaning: '뒤', reading: '후' },
+      { id: 129, hanja: '得', meaning: '얻을', reading: '득' },
+      { id: 130, hanja: '從', meaning: '좇을', reading: '종' },
+      { id: 131, hanja: '復', meaning: '돌아올', reading: '복' },
+      { id: 132, hanja: '德', meaning: '클', reading: '덕' },
+      { id: 133, hanja: '心', meaning: '마음', reading: '심' },
+      { id: 134, hanja: '必', meaning: '반드시', reading: '필' },
+      { id: 135, hanja: '快', meaning: '유쾌할', reading: '쾌' },
+      { id: 136, hanja: '怒', meaning: '성낼', reading: '노' },
+      { id: 137, hanja: '思', meaning: '생각', reading: '사' },
+      { id: 138, hanja: '急', meaning: '급할', reading: '급' },
+      { id: 139, hanja: '恒', meaning: '항상', reading: '항' },
+      { id: 140, hanja: '息', meaning: '쉴', reading: '식' },
+      { id: 141, hanja: '悅', meaning: '기뻐할', reading: '열' },
+      { id: 142, hanja: '悲', meaning: '슬플', reading: '비' },
+      { id: 143, hanja: '情', meaning: '뜻', reading: '정' },
+      { id: 144, hanja: '惡', meaning: '악할', reading: '악' },
+      { id: 145, hanja: '意', meaning: '뜻', reading: '의' },
+      { id: 146, hanja: '愛', meaning: '사랑', reading: '애' },
+      { id: 147, hanja: '感', meaning: '느낄', reading: '감' },
+      { id: 148, hanja: '慈', meaning: '사랑', reading: '자' },
+      { id: 149, hanja: '憂', meaning: '근심', reading: '우' },
+      { id: 150, hanja: '憐', meaning: '불쌍히', reading: '여길', reading: '련(연)' },
+      { id: 151, hanja: '應', meaning: '응할', reading: '응' },
+      { id: 152, hanja: '成', meaning: '이룰', reading: '성' },
+      { id: 153, hanja: '戒', meaning: '경계할', reading: '계' },
+      { id: 154, hanja: '戰', meaning: '싸움', reading: '전' },
+      { id: 155, hanja: '承', meaning: '이을', reading: '승' },
+      { id: 156, hanja: '技', meaning: '재주', reading: '기' },
+      { id: 157, hanja: '押', meaning: '누를', reading: '압' },
+      { id: 158, hanja: '捲', meaning: '거둘', reading: '권' },
+      { id: 159, hanja: '政', meaning: '정사', reading: '정' },
+      { id: 160, hanja: '故', meaning: '연고', reading: '고' },
+      { id: 161, hanja: '效', meaning: '본받을', reading: '효' },
+      { id: 162, hanja: '敎', meaning: '가르칠', reading: '교' },
+      { id: 163, hanja: '敗', meaning: '패할', reading: '패' },
+      { id: 164, hanja: '敵', meaning: '대적할', reading: '적' },
+      { id: 165, hanja: '數', meaning: '셈', reading: '수' },
+      { id: 166, hanja: '斂', meaning: '거둘', reading: '렴(염)' },
+      { id: 167, hanja: '新', meaning: '새', reading: '신' },
+      { id: 168, hanja: '斷', meaning: '끊을', reading: '단' },
+      { id: 169, hanja: '方', meaning: '모', reading: '방' },
+      { id: 170, hanja: '於', meaning: '어조사', reading: '어' },
+      { id: 171, hanja: '施', meaning: '베풀', reading: '시' },
+      { id: 172, hanja: '日', meaning: '날', reading: '일' },
+      { id: 173, hanja: '明', meaning: '밝을', reading: '명' },
+      { id: 174, hanja: '昏', meaning: '어두울', reading: '혼' },
+      { id: 175, hanja: '易', meaning: '바꿀', reading: '역' },
+      { id: 176, hanja: '春', meaning: '봄', reading: '춘' },
+      { id: 177, hanja: '昨', meaning: '어제', reading: '작' },
+      { id: 178, hanja: '是', meaning: '이', reading: '시' },
+      { id: 179, hanja: '時', meaning: '때', reading: '시' },
+      { id: 180, hanja: '晚', meaning: '늦을', reading: '만' },
+      { id: 181, hanja: '晨', meaning: '새벽', reading: '신' },
+      { id: 182, hanja: '景', meaning: '경치', reading: '경' },
+      { id: 183, hanja: '暗', meaning: '어두울', reading: '암' },
+      { id: 184, hanja: '曲', meaning: '노래', reading: '곡' },
+      { id: 185, hanja: '最', meaning: '가장', reading: '최' },
+      { id: 186, hanja: '會', meaning: '모일', reading: '회' },
+      { id: 187, hanja: '朋', meaning: '벗', reading: '붕' },
+      { id: 188, hanja: '未', meaning: '아닐', reading: '미' },
+      { id: 189, hanja: '朱', meaning: '붉을', reading: '주' },
+      { id: 190, hanja: '李', meaning: '오얏', reading: '리(이)' },
+      { id: 191, hanja: '村', meaning: '마을', reading: '촌' },
+      { id: 192, hanja: '杞', meaning: '구기자', reading: '기' },
+      { id: 193, hanja: '楚', meaning: '초나라', reading: '초' },
+      { id: 194, hanja: '機', meaning: '틀', reading: '기' },
+      { id: 195, hanja: '欲', meaning: '하고자할', reading: '욕' },
+      { id: 196, hanja: '歇', meaning: '쉴', reading: '헐' },
+      { id: 197, hanja: '歌', meaning: '노래', reading: '가' },
+      { id: 198, hanja: '歎', meaning: '탄식할', reading: '탄' },
+      { id: 199, hanja: '此', meaning: '이', reading: '차' },
+      { id: 200, hanja: '歲', meaning: '나이', reading: '세' },
+      { id: 201, hanja: '歸', meaning: '돌아갈', reading: '귀' },
+      { id: 202, hanja: '死', meaning: '죽을', reading: '사' },
+      { id: 203, hanja: '殺', meaning: '죽일', reading: '살' },
+      { id: 204, hanja: '母', meaning: '어머니', reading: '모' },
+      { id: 205, hanja: '毛', meaning: '터럭', reading: '모' },
+      { id: 206, hanja: '氣', meaning: '기운', reading: '기' },
+      { id: 207, hanja: '求', meaning: '구할', reading: '구' },
+      { id: 208, hanja: '江', meaning: '강', reading: '강' },
+      { id: 209, hanja: '河', meaning: '물', reading: '하' },
+      { id: 210, hanja: '法', meaning: '법', reading: '법' },
+      { id: 211, hanja: '波', meaning: '물결', reading: '파' },
+      { id: 212, hanja: '活', meaning: '살다', reading: '활' },
+      { id: 213, hanja: '浦', meaning: '물가', reading: '포' },
+      { id: 214, hanja: '淚', meaning: '눈물', reading: '루' },
+      { id: 215, hanja: '淸', meaning: '맑을', reading: '청' },
+      { id: 216, hanja: '添', meaning: '더할', reading: '첨' },
+      { id: 217, hanja: '渴', meaning: '목마를', reading: '갈' },
+      { id: 218, hanja: '溫', meaning: '따뜻할', reading: '온' },
+      { id: 219, hanja: '漢', meaning: '한나라', reading: '한' },
+      { id: 220, hanja: '潔', meaning: '깨끗할', reading: '결' },
+      { id: 221, hanja: '火', meaning: '불', reading: '화' },
+      { id: 222, hanja: '無', meaning: '없을', reading: '무' },
+      { id: 223, hanja: '煙', meaning: '연기', reading: '연' },
+      { id: 224, hanja: '照', meaning: '비칠', reading: '조' },
+      { id: 225, hanja: '燃', meaning: '불탈', reading: '연' },
+      { id: 226, hanja: '燈', meaning: '등', reading: '등' },
+      { id: 227, hanja: '爭', meaning: '다툴', reading: '쟁' },
+      { id: 228, hanja: '爲', meaning: '할', reading: '위' },
+      { id: 229, hanja: '牀', meaning: '평상', reading: '상' },
+      { id: 230, hanja: '牙', meaning: '어금니', reading: '아' },
+      { id: 231, hanja: '牛', meaning: '소', reading: '우' },
+      { id: 232, hanja: '物', meaning: '물건', reading: '물' },
+      { id: 233, hanja: '牽', meaning: '이끌', reading: '견' },
+      { id: 234, hanja: '猛', meaning: '사나울', reading: '맹' },
+      { id: 235, hanja: '猶', meaning: '오히려', reading: '유' },
+      { id: 236, hanja: '現', meaning: '나타날', reading: '현' },
+      { id: 237, hanja: '甘', meaning: '달', reading: '감' },
+      { id: 238, hanja: '生', meaning: '날', reading: '생' },
+      { id: 239, hanja: '甲', meaning: '갑옷', reading: '갑' },
+      { id: 240, hanja: '男', meaning: '사내', reading: '남' },
+      { id: 241, hanja: '異', meaning: '다를', reading: '이' },
+      { id: 242, hanja: '當', meaning: '마땅', reading: '당' },
+      { id: 243, hanja: '病', meaning: '병', reading: '병' },
+      { id: 244, hanja: '發', meaning: '피다', reading: '발' },
+      { id: 245, hanja: '白', meaning: '흰', reading: '백' },
+      { id: 246, hanja: '百', meaning: '일백', reading: '백' },
+      { id: 247, hanja: '盡', meaning: '다할', reading: '진' },
+      { id: 248, hanja: '目', meaning: '눈', reading: '목' },
+      { id: 249, hanja: '相', meaning: '서로', reading: '상' },
+      { id: 250, hanja: '省', meaning: '살필', reading: '성' },
+      { id: 251, hanja: '看', meaning: '볼', reading: '간' },
+      { id: 252, hanja: '知', meaning: '알', reading: '지' },
+      { id: 253, hanja: '矯', meaning: '바로잡을', reading: '교' },
+      { id: 254, hanja: '石', meaning: '돌', reading: '석' },
+      { id: 255, hanja: '硏', meaning: '갈', reading: '연' },
+      { id: 256, hanja: '碧', meaning: '푸를', reading: '벽' },
+      { id: 257, hanja: '秀', meaning: '빼어날', reading: '수' },
+      { id: 258, hanja: '種', meaning: '씨', reading: '종' },
+      { id: 259, hanja: '究', meaning: '연구할', reading: '구' },
+      { id: 260, hanja: '競', meaning: '다툴', reading: '경' },
+      { id: 261, hanja: '竹', meaning: '대', reading: '죽' },
+      { id: 262, hanja: '竿', meaning: '낚싯대', reading: '간' },
+      { id: 263, hanja: '笑', meaning: '웃음', reading: '소' },
+      { id: 264, hanja: '策', meaning: '대쪽', reading: '책' },
+      { id: 265, hanja: '算', meaning: '셈하다', reading: '산' },
+      { id: 266, hanja: '管', meaning: '대롱', reading: '관' },
+      { id: 267, hanja: '紅', meaning: '붉을', reading: '홍' },
+      { id: 268, hanja: '累', meaning: '포갤', reading: '루(누)' },
+      { id: 269, hanja: '終', meaning: '마칠', reading: '종' },
+      { id: 270, hanja: '絃', meaning: '줄', reading: '현' },
+      { id: 271, hanja: '結', meaning: '맺을', reading: '결' },
+      { id: 272, hanja: '絕', meaning: '끊을', reading: '절' },
+      { id: 273, hanja: '綠', meaning: '푸를', reading: '록(녹)' },
+      { id: 274, hanja: '練', meaning: '익힐', reading: '련(연)' },
+      { id: 275, hanja: '縫', meaning: '꿰맬', reading: '봉' },
+      { id: 276, hanja: '羊', meaning: '양', reading: '양' },
+      { id: 277, hanja: '美', meaning: '아름다울', reading: '미' },
+      { id: 278, hanja: '義', meaning: '옳을', reading: '의' },
+      { id: 279, hanja: '習', meaning: '익힐', reading: '습' },
+      { id: 280, hanja: '考', meaning: '생각할', reading: '고' },
+      { id: 281, hanja: '者', meaning: '놈', reading: '자' },
+      { id: 282, hanja: '聖', meaning: '성인', reading: '성' },
+      { id: 283, hanja: '肋', meaning: '갈빗대', reading: '륵(늑)' },
+      { id: 284, hanja: '肝', meaning: '간', reading: '간' },
+      { id: 285, hanja: '背', meaning: '등', reading: '배' },
+      { id: 286, hanja: '能', meaning: '능할', reading: '능' },
+      { id: 287, hanja: '腹', meaning: '배', reading: '복' },
+      { id: 288, hanja: '膽', meaning: '쓸개', reading: '담' },
+      { id: 289, hanja: '臣', meaning: '신하', reading: '신' },
+      { id: 290, hanja: '臨', meaning: '임할', reading: '림(임)' },
+      { id: 291, hanja: '自', meaning: '스스로', reading: '자' },
+      { id: 292, hanja: '臺', meaning: '대', reading: '대' },
+      { id: 293, hanja: '舊', meaning: '예', reading: '구' },
+      { id: 294, hanja: '舞', meaning: '춤출', reading: '무' },
+      { id: 295, hanja: '舟', meaning: '배', reading: '주' },
+      { id: 296, hanja: '色', meaning: '빛', reading: '색' },
+      { id: 297, hanja: '花', meaning: '꽃', reading: '화' },
+      { id: 298, hanja: '苛', meaning: '가혹할', reading: '가' },
+      { id: 299, hanja: '苦', meaning: '쓸', reading: '고' },
+      { id: 300, hanja: '草', meaning: '풀', reading: '초' },
+      { id: 301, hanja: '莫', meaning: '없을', reading: '막' },
+      { id: 302, hanja: '薦', meaning: '천거할', reading: '천' },
+      { id: 303, hanja: '藝', meaning: '재주', reading: '예' },
+      { id: 304, hanja: '虎', meaning: '범', reading: '호' },
+      { id: 305, hanja: '處', meaning: '곳', reading: '처' },
+      { id: 306, hanja: '虛', meaning: '빌', reading: '허' },
+      { id: 307, hanja: '蜜', meaning: '꿀', reading: '밀' },
+      { id: 308, hanja: '衆', meaning: '무리', reading: '중' },
+      { id: 309, hanja: '裳', meaning: '치마', reading: '상' },
+      { id: 310, hanja: '要', meaning: '중요할', reading: '요' },
+      { id: 311, hanja: '見', meaning: '볼', reading: '견' },
+      { id: 312, hanja: '觀', meaning: '볼', reading: '관' },
+      { id: 313, hanja: '角', meaning: '뿔', reading: '각' },
+      { id: 314, hanja: '解', meaning: '풀', reading: '해' },
+      { id: 315, hanja: '言', meaning: '말씀', reading: '언' },
+      { id: 316, hanja: '計', meaning: '셀', reading: '계' },
+      { id: 317, hanja: '詩', meaning: '시', reading: '시' },
+      { id: 318, hanja: '誅', meaning: '벨', reading: '주' },
+      { id: 319, hanja: '說', meaning: '말씀', reading: '설' },
+      { id: 320, hanja: '談', meaning: '말씀', reading: '담' },
+      { id: 321, hanja: '證', meaning: '증거', reading: '증' },
+      { id: 322, hanja: '變', meaning: '변할', reading: '변' },
+      { id: 323, hanja: '赤', meaning: '붉을', reading: '적' },
+      { id: 324, hanja: '起', meaning: '일어날', reading: '기' },
+      { id: 325, hanja: '身', meaning: '몸', reading: '신' },
+      { id: 326, hanja: '轉', meaning: '바꾸다', reading: '전' },
+      { id: 327, hanja: '農', meaning: '농사', reading: '농' },
+      { id: 328, hanja: '近', meaning: '가까울', reading: '근' },
+      { id: 329, hanja: '追', meaning: '쫓을', reading: '추' },
+      { id: 330, hanja: '送', meaning: '보낼', reading: '송' },
+      { id: 331, hanja: '逆', meaning: '거스를', reading: '역' },
+      { id: 332, hanja: '逾', meaning: '넘을', reading: '유' },
+      { id: 333, hanja: '遂', meaning: '드디어', reading: '수' },
+      { id: 334, hanja: '遇', meaning: '만날', reading: '우' },
+      { id: 335, hanja: '過', meaning: '지날', reading: '과' },
+      { id: 336, hanja: '道', meaning: '길', reading: '도' },
+      { id: 337, hanja: '遠', meaning: '멀', reading: '원' },
+      { id: 338, hanja: '遷', meaning: '옮길', reading: '천' },
+      { id: 339, hanja: '邑', meaning: '고을', reading: '읍' },
+      { id: 340, hanja: '重', meaning: '무거울', reading: '중' },
+      { id: 341, hanja: '錐', meaning: '송곳', reading: '추' },
+      { id: 342, hanja: '長', meaning: '길', reading: '장' },
+      { id: 343, hanja: '附', meaning: '붙을', reading: '부' },
+      { id: 344, hanja: '離', meaning: '떠날', reading: '리(이)' },
+      { id: 345, hanja: '難', meaning: '어려울', reading: '난' },
+      { id: 346, hanja: '雨', meaning: '비', reading: '우' },
+      { id: 347, hanja: '雷', meaning: '우레', reading: '뢰(뇌)' },
+      { id: 348, hanja: '靑', meaning: '푸를', reading: '청' },
+      { id: 349, hanja: '面', meaning: '낯', reading: '면' },
+      { id: 350, hanja: '韻', meaning: '운', reading: '운' },
+      { id: 351, hanja: '順', meaning: '순할', reading: '순' },
+      { id: 352, hanja: '須', meaning: '받드시', reading: '수' },
+      { id: 353, hanja: '頭', meaning: '머리', reading: '두' },
+      { id: 354, hanja: '風', meaning: '바람', reading: '풍' },
+      { id: 355, hanja: '首', meaning: '머리', reading: '수' },
+      { id: 356, hanja: '香', meaning: '향기', reading: '향' },
+      { id: 357, hanja: '馬', meaning: '말', reading: '마' },
+      { id: 358, hanja: '體', meaning: '몸', reading: '체' },
+      { id: 359, hanja: '鮑', meaning: '절인어물', reading: '포' },
+      { id: 360, hanja: '鮮', meaning: '고울', reading: '선' },
+      { id: 361, hanja: '鳥', meaning: '새', reading: '조' },
+      { id: 362, hanja: '鷄', meaning: '닭', reading: '계' },
+      { id: 363, hanja: '麥', meaning: '보리', reading: '맥' },
+      { id: 364, hanja: '黃', meaning: '누를', reading: '황' },
+      { id: 365, hanja: '黑', meaning: '검을', reading: '흑' },
+      { id: 366, hanja: '鼻', meaning: '코', reading: '비' },
+      { id: 367, hanja: '齒', meaning: '이', reading: '치' },
+      { id: 368, hanja: '禮', meaning: '예도', reading: '례(예)' },
+      { id: 369, hanja: '茶', meaning: '차', reading: '다' },
+      { id: 370, hanja: '福', meaning: '복', reading: '복' },
+      { id: 371, hanja: '諸', meaning: '모두', reading: '제' },
+      { id: 372, hanja: '都', meaning: '도읍', reading: '도' },
+      { id: 373, hanja: '飯', meaning: '밥', reading: '반' },
+      { id: 374, hanja: '墨', meaning: '먹', reading: '묵' }
+    ];
+
+    // 2. 앱 상태 관리
+    const state = {
+      selectedStartNumber: 1, // 시작 화면에서 고른 번호 (1 ~ 50)
+      deck: [],               // 현재 세션에서 학습할 카드 배열
+      currentIndex: 0,        // deck 내 현재 인덱스
+      isMeaningVisible: false,// 뜻 표시 여부
+      isReadingVisible: false,// 음 표시 여부
+      isShuffled: false,      // 무작위 모드 여부
+      visitedIds: new Set(),  // 이번 세션에서 본 한자 ID 집합
+    };
+
+    // 3. DOM 요소 참조
+    const screens = {
+      start: document.getElementById('start-screen'),
+      study: document.getElementById('study-screen'),
+      summary: document.getElementById('summary-screen'),
+    };
+
+    const startNumberSelect = document.getElementById('start-number-select');
+    const resetToOneBtn = document.getElementById('reset-to-one-btn');
+    const shuffleToggle = document.getElementById('shuffle-toggle');
+    const hanjaGridList = document.getElementById('hanja-grid-list');
+    const selectedPreviewBadge = document.getElementById('selected-preview-badge');
+    const startStudyBtn = document.getElementById('start-study-btn');
+    const startBtnLabel = document.getElementById('start-btn-label');
+
+    const ingameJumpSelect = document.getElementById('ingame-jump-select');
+    const progressCounter = document.getElementById('progress-counter');
+    const progressBarFill = document.getElementById('progress-bar-fill');
+    const quitStudyBtn = document.getElementById('quit-study-btn');
+
+    const flashcardBox = document.getElementById('flashcard-box');
+    const cardOriginalNumber = document.getElementById('card-original-number');
+    const shuffleBadge = document.getElementById('shuffle-badge');
+    const hanjaCharacter = document.getElementById('hanja-character');
+
+    const meaningCardSlot = document.getElementById('meaning-card-slot');
+    const meaningHiddenPlaceholder = document.getElementById('meaning-hidden-placeholder');
+    const meaningText = document.getElementById('meaning-text');
+
+    const readingCardSlot = document.getElementById('reading-card-slot');
+    const readingHiddenPlaceholder = document.getElementById('reading-hidden-placeholder');
+    const readingText = document.getElementById('reading-text');
+
+    const toggleMeaningBtn = document.getElementById('toggle-meaning-btn');
+    const meaningBtnLabel = document.getElementById('meaning-btn-label');
+    const toggleReadingBtn = document.getElementById('toggle-reading-btn');
+    const readingBtnLabel = document.getElementById('reading-btn-label');
+
+    const prevCardBtn = document.getElementById('prev-card-btn');
+    const nextCardBtn = document.getElementById('next-card-btn');
+    const nextBtnLabel = document.getElementById('next-btn-label');
+
+    const summaryTitle = document.getElementById('summary-title');
+    const summarySubtitle = document.getElementById('summary-subtitle');
+    const summaryStartInfo = document.getElementById('summary-start-info');
+    const summaryLastInfo = document.getElementById('summary-last-info');
+    const summaryCountInfo = document.getElementById('summary-count-info');
+    const continueFromLastBtn = document.getElementById('continue-from-last-btn');
+    const restartFirstBtn = document.getElementById('restart-first-btn');
+    const backToHomeBtn = document.getElementById('back-to-home-btn');
+
+    // 4. 화면 전환 유틸리티
+    function showScreen(screenName) {
+      Object.values(screens).forEach((el) => el.classList.add('hidden'));
+      screens[screenName].classList.remove('hidden');
+    }
+
+    // 5. 시작 화면 초기화 (드롭다운 및 50자 그리드 생성)
+    function initStartScreen() {
+      startNumberSelect.innerHTML = '';
+      hanjaGridList.innerHTML = '';
+
+      HANJA_DATA.forEach((item) => {
+        // 드롭다운 옵션 추가
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = `${item.id}번 — ${item.hanja}`;
+        startNumberSelect.appendChild(option);
+
+        // 한자 빠른 선택 버튼 추가
+        const gridBtn = document.createElement('button');
+        gridBtn.type = 'button';
+        gridBtn.dataset.id = item.id;
+        gridBtn.className =
+          'hanja-grid-item flex flex-col items-center justify-center py-2 px-1 rounded-xl border border-stone-200 bg-stone-50 hover:bg-indigo-50 hover:border-indigo-300 transition text-center';
+        gridBtn.innerHTML = `
+          <span class="text-[10px] font-bold text-slate-400 leading-none mb-1">${item.id}</span>
+          <span class="font-hanja text-xl font-bold text-slate-800 leading-none">${item.hanja}</span>
+        `;
+        gridBtn.addEventListener('click', () => {
+          setSelectedStartNumber(item.id);
+        });
+        hanjaGridList.appendChild(gridBtn);
+      });
+
+      setSelectedStartNumber(1);
+    }
+
+    // 시작 번호 선택 동기화
+    function setSelectedStartNumber(num) {
+      const parsed = Math.min(50, Math.max(1, Number(num) || 1));
+      state.selectedStartNumber = parsed;
+      startNumberSelect.value = String(parsed);
+
+      const targetItem = HANJA_DATA[parsed - 1];
+      selectedPreviewBadge.textContent = `현재 선택: ${parsed}번 (${targetItem.hanja})`;
+      startBtnLabel.textContent = `${parsed}번부터 학습 시작`;
+
+      // 그리드 하이라이트 갱신
+      document.querySelectorAll('.hanja-grid-item').forEach((btn) => {
+        const btnId = Number(btn.dataset.id);
+        if (btnId === parsed) {
+          btn.classList.remove('bg-stone-50', 'border-stone-200');
+          btn.classList.add('bg-indigo-600', 'border-indigo-600', 'shadow-sm');
+          btn.querySelector('span:first-child').classList.replace('text-slate-400', 'text-indigo-200');
+          btn.querySelector('span:last-child').classList.replace('text-slate-800', 'text-white');
+        } else {
+          btn.classList.add('bg-stone-50', 'border-stone-200');
+          btn.classList.remove('bg-indigo-600', 'border-indigo-600', 'shadow-sm');
+          btn.querySelector('span:first-child').classList.replace('text-indigo-200', 'text-slate-400');
+          btn.querySelector('span:last-child').classList.replace('text-white', 'text-slate-800');
+        }
+      });
+    }
+
+    // 배열 셔플 함수 (Fisher-Yates)
+    function shuffleArray(array) {
+      const copy = [...array];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    // 6. 학습 세션 시작
+    function startStudySession(startNum = state.selectedStartNumber) {
+      const startIndex = Math.min(49, Math.max(0, startNum - 1));
+      let slicedDeck = HANJA_DATA.slice(startIndex);
+
+      state.isShuffled = shuffleToggle.checked;
+      if (state.isShuffled) {
+        slicedDeck = shuffleArray(slicedDeck);
+      }
+
+      state.deck = slicedDeck;
+      state.currentIndex = 0;
+      state.visitedIds = new Set();
+
+      // 상단 빠른 이동 드롭다운 채우기
+      ingameJumpSelect.innerHTML = '';
+      state.deck.forEach((item, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${item.id}번 (${item.hanja})`;
+        ingameJumpSelect.appendChild(opt);
+      });
+
+      shuffleBadge.classList.toggle('hidden', !state.isShuffled);
+      showScreen('study');
+      renderCurrentCard();
+    }
+
+    // 7. 현재 카드 렌더링 (뜻과 음은 무조건 초기 숨김 상태로 리셋)
+    function renderCurrentCard() {
+      const currentCard = state.deck[state.currentIndex];
+      if (!currentCard) return;
+
+      state.visitedIds.add(currentCard.id);
+
+      // 뜻/음 초기화 (숨김)
+      state.isMeaningVisible = false;
+      state.isReadingVisible = false;
+
+      // 카드 애니메이션 재실행
+      flashcardBox.classList.remove('animate-card');
+      void flashcardBox.offsetWidth; // reflow
+      flashcardBox.classList.add('animate-card');
+
+      // 텍스트 채우기
+      cardOriginalNumber.textContent = `No. ${currentCard.id}`;
+      hanjaCharacter.textContent = currentCard.hanja;
+      meaningText.textContent = currentCard.meaning;
+      readingText.textContent = currentCard.reading;
+
+      // 상단 진행 상태 업데이트
+      ingameJumpSelect.value = String(state.currentIndex);
+      const totalInDeck = state.deck.length;
+      const currentStep = state.currentIndex + 1;
+      progressCounter.textContent = `${currentStep} / ${totalInDeck}`;
+      progressBarFill.style.width = `${(currentStep / totalInDeck) * 100}%`;
+
+      // 이전/다음 버튼 상태 업데이트
+      prevCardBtn.disabled = state.currentIndex === 0;
+      if (state.currentIndex === totalInDeck - 1) {
+        nextBtnLabel.textContent = '학습 완료';
+      } else {
+        nextBtnLabel.textContent = '다음 한자';
+      }
+
+      updateRevealUI();
+    }
+
+    // 8. 뜻 / 음 가림막 및 버튼 상태 동기화
+    function updateRevealUI() {
+      // 뜻 (Meaning) UI
+      if (state.isMeaningVisible) {
+        meaningHiddenPlaceholder.classList.add('hidden');
+        meaningText.classList.remove('hidden');
+        meaningCardSlot.classList.remove('border-dashed', 'border-stone-200', 'bg-stone-50/80');
+        meaningCardSlot.classList.add('border-solid', 'border-amber-300', 'bg-amber-50/60');
+        meaningBtnLabel.textContent = '뜻 숨기기';
+      } else {
+        meaningHiddenPlaceholder.classList.remove('hidden');
+        meaningText.classList.add('hidden');
+        meaningCardSlot.classList.add('border-dashed', 'border-stone-200', 'bg-stone-50/80');
+        meaningCardSlot.classList.remove('border-solid', 'border-amber-300', 'bg-amber-50/60');
+        meaningBtnLabel.textContent = '뜻 보기';
+      }
+
+      // 음 (Reading) UI
+      if (state.isReadingVisible) {
+        readingHiddenPlaceholder.classList.add('hidden');
+        readingText.classList.remove('hidden');
+        readingCardSlot.classList.remove('border-dashed', 'border-stone-200', 'bg-stone-50/80');
+        readingCardSlot.classList.add('border-solid', 'border-emerald-300', 'bg-emerald-50/60');
+        readingBtnLabel.textContent = '음 숨기기';
+      } else {
+        readingHiddenPlaceholder.classList.remove('hidden');
+        readingText.classList.add('hidden');
+        readingCardSlot.classList.add('border-dashed', 'border-stone-200', 'bg-stone-50/80');
+        readingCardSlot.classList.remove('border-solid', 'border-emerald-300', 'bg-emerald-50/60');
+        readingBtnLabel.textContent = '음 보기';
+      }
+    }
+
+    // 9. 학습 종료 / 완료 화면 표시
+    function finishStudySession(isCompletedAll = false) {
+      const firstCard = state.deck[0];
+      const lastCard = state.deck[state.currentIndex];
+
+      if (isCompletedAll) {
+        summaryTitle.textContent = '모든 카드를 학습했습니다!';
+        summarySubtitle.textContent = '선택한 범위의 한자를 끝까지 마쳤습니다.';
+      } else {
+        summaryTitle.textContent = '학습을 종료했습니다';
+        summarySubtitle.textContent = '중간에 종료해도 언제든 이어서 학습할 수 있습니다.';
+      }
+
+      summaryStartInfo.textContent = `${firstCard.id}번 (${firstCard.hanja})`;
+      summaryLastInfo.textContent = `${lastCard.id}번 (${lastCard.hanja})`;
+      summaryCountInfo.textContent = `총 ${state.visitedIds.size}개 한자`;
+
+      // 이어하기 버튼 처리 (마지막 50번까지 다 본 경우 숨김 처리)
+      if (isCompletedAll || lastCard.id >= 50) {
+        continueFromLastBtn.classList.add('hidden');
+      } else {
+        continueFromLastBtn.classList.remove('hidden');
+        const nextId = lastCard.id + 1;
+        const nextItem = HANJA_DATA[nextId - 1];
+        continueFromLastBtn.textContent = `다음 번호(${nextId}번 ${nextItem.hanja})부터 이어하기`;
+        continueFromLastBtn.dataset.nextId = nextId;
+      }
+
+      showScreen('summary');
+    }
+
+    // 10. 이벤트 리스너 등록
+    startNumberSelect.addEventListener('change', (e) => {
+      setSelectedStartNumber(e.target.value);
+    });
+
+    resetToOneBtn.addEventListener('click', () => {
+      setSelectedStartNumber(1);
+    });
+
+    startStudyBtn.addEventListener('click', () => {
+      startStudySession(state.selectedStartNumber);
+    });
+
+    // 뜻 버튼 & 뜻 카드 영역 클릭
+    function toggleMeaning() {
+      state.isMeaningVisible = !state.isMeaningVisible;
+      updateRevealUI();
+    }
+    toggleMeaningBtn.addEventListener('click', toggleMeaning);
+    meaningCardSlot.addEventListener('click', toggleMeaning);
+
+    // 음 버튼 & 음 카드 영역 클릭
+    function toggleReading() {
+      state.isReadingVisible = !state.isReadingVisible;
+      updateRevealUI();
+    }
+    toggleReadingBtn.addEventListener('click', toggleReading);
+    readingCardSlot.addEventListener('click', toggleReading);
+
+    // 다음 한자 버튼
+    function goToNextCard() {
+      if (state.currentIndex < state.deck.length - 1) {
+        state.currentIndex += 1;
+        renderCurrentCard();
+      } else {
+        finishStudySession(true);
+      }
+    }
+    nextCardBtn.addEventListener('click', goToNextCard);
+
+    // 이전 한자 버튼
+    function goToPrevCard() {
+      if (state.currentIndex > 0) {
+        state.currentIndex -= 1;
+        renderCurrentCard();
+      }
+    }
+    prevCardBtn.addEventListener('click', goToPrevCard);
+
+    // 학습 중 상단 드롭다운으로 특정 번호 이동
+    ingameJumpSelect.addEventListener('change', (e) => {
+      state.currentIndex = Number(e.target.value);
+      renderCurrentCard();
+    });
+
+    // 중간 종료 버튼
+    quitStudyBtn.addEventListener('click', () => {
+      finishStudySession(false);
+    });
+
+    // 요약 화면 버튼들
+    continueFromLastBtn.addEventListener('click', () => {
+      const nextId = Number(continueFromLastBtn.dataset.nextId) || 1;
+      setSelectedStartNumber(nextId);
+      startStudySession(nextId);
+    });
+
+    restartFirstBtn.addEventListener('click', () => {
+      setSelectedStartNumber(1);
+      startStudySession(1);
+    });
+
+    backToHomeBtn.addEventListener('click', () => {
+      showScreen('start');
+    });
+
+    // 데스크톱 키보드 단축키 지원 (1: 뜻, 2: 음, 오른쪽 화살표/엔터: 다음, 왼쪽 화살표: 이전)
+    document.addEventListener('keydown', (e) => {
+      if (screens.study.classList.contains('hidden')) return;
+      // select 요소에 포커스가 있을 때는 기본 동작 우선
+      if (document.activeElement === ingameJumpSelect) return;
+
+      if (e.key === '1') {
+        toggleMeaning();
+      } else if (e.key === '2') {
+        toggleReading();
+      } else if (e.key === 'ArrowRight' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        goToNextCard();
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        goToPrevCard();
+      }
+    });
+
+    // 앱 초기화 실행
+    initStartScreen();
+  </script>
+</body>
+</html>
