@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Day 15 영단어 인터랙티브 학습</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;700;800&display=swap');
+        body {
+            font-family: 'Pretendard', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: none;
+        }
+        .safe-area-padding {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-indigo-500 selection:text-white safe-area-padding overflow-x-hidden">
+
+    <header class="w-full max-w-3xl mx-auto px-4 sm:px-6 py-4 flex justify-between items-center border-b border-slate-800">
+        <h1 class="text-lg sm:text-xl font-bold tracking-tight text-indigo-400 truncate">Day 15 영단어 학습 (100개)</h1>
+        <div class="flex items-center space-x-2">
+            <!-- 전체 단어 보기 버튼 -->
+            <button onclick="openAllWordsModal()" class="text-xs bg-slate-800 hover:bg-slate-700 text-indigo-300 font-semibold px-3 py-1.5 rounded-xl transition flex items-center shadow-md cursor-pointer active:scale-95 border border-slate-700">
+                📚 전체 단어 보기
+            </button>
+            <div id="progress-indicator" class="text-xs sm:text-sm font-semibold text-slate-400 bg-slate-800 px-3 py-1 rounded-full hidden shrink-0 ml-2">
+                1 / 100
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full max-w-3xl mx-auto px-4 sm:px-6 flex-grow flex flex-col justify-center items-center my-6 sm:my-8">
+        
+        <!-- 모드 선택 화면 -->
+        <div id="mode-select-container" class="w-full bg-slate-800/80 border border-slate-700 rounded-3xl p-6 sm:p-8 shadow-2xl text-center">
+            <div class="text-4xl sm:text-5xl mb-3">🎯</div>
+            <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">Day 15 영단어 학습 시작</h2>
+            <p class="text-sm sm:text-base text-slate-400 mb-6">학습 방식을 선택하고 옵션을 설정해 주세요.</p>
+            
+            <!-- 학습 설정 옵션 (시작 번호 및 암기 건너뛰기) -->
+            <div class="bg-slate-900/70 border border-slate-700/80 rounded-2xl p-4 sm:p-5 mb-6 text-left space-y-4 shadow-inner">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <label for="start-number-input" class="text-sm font-bold text-slate-300 flex items-center">
+                        <span class="mr-2">📍</span> 시작 단어 번호 (1 ~ 100):
+                    </label>
+                    <input type="number" id="start-number-input" min="1" max="100" value="1" class="w-full sm:w-28 px-3 py-2 bg-slate-800 border border-slate-700 rounded-xl text-white text-center font-bold focus:outline-none focus:border-indigo-500 text-sm">
+                </div>
+                
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between pt-3 border-t border-slate-800 gap-3">
+                    <label class="flex items-center space-x-3 cursor-pointer select-none">
+                        <input type="checkbox" id="skip-completed-checkbox" checked class="w-5 h-5 accent-indigo-600 rounded cursor-pointer">
+                        <span class="text-sm font-semibold text-slate-300">✅ 이미 암기 완료한 단어 건너뛰기</span>
+                    </label>
+                    <button onclick="resetCompletedMemory()" class="text-xs bg-slate-800 hover:bg-rose-950/50 text-rose-400 hover:text-rose-300 px-3 py-1.5 rounded-xl border border-slate-700 hover:border-rose-800 transition cursor-pointer self-start sm:self-auto">
+                        🗑️ 암기 기록 초기화
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md mx-auto">
+                <button onclick="startLearning(false)" class="p-5 sm:p-6 bg-slate-900 hover:bg-indigo-950/60 border-2 border-slate-700 hover:border-indigo-500 rounded-2xl transition-all flex flex-col items-center group shadow-lg cursor-pointer active:scale-95">
+                    <span class="text-3xl mb-2">📋</span>
+                    <span class="text-lg sm:text-xl font-bold text-white group-hover:text-indigo-300">순서대로 학습</span>
+                    <span class="text-xs text-slate-400 mt-1">지정한 번호부터 차례대로</span>
+                </button>
+                <button onclick="startLearning(true)" class="p-5 sm:p-6 bg-slate-900 hover:bg-indigo-950/60 border-2 border-slate-700 hover:border-indigo-500 rounded-2xl transition-all flex flex-col items-center group shadow-lg cursor-pointer active:scale-95">
+                    <span class="text-3xl mb-2">🔀</span>
+                    <span class="text-lg sm:text-xl font-bold text-white group-hover:text-indigo-300">랜덤(Shuffle) 학습</span>
+                    <span class="text-xs text-slate-400 mt-1">단어를 무작위로 섞어서 학습</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- 학습 진행 화면 -->
+        <div id="study-container" class="w-full flex flex-col items-center hidden">
+            
+            <div id="word-meta" class="mb-3 sm:mb-4 text-xs sm:text-sm font-semibold text-indigo-300 uppercase tracking-wider bg-indigo-950/60 border border-indigo-800/50 px-4 py-1.5 rounded-full shadow-inner">
+                Word #1
+            </div>
+
+            <!-- 영어 단어 -->
+            <div class="text-center w-full px-2 mb-4 sm:mb-6">
+                <h2 id="word-display" class="text-4xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight break-words drop-shadow-md py-2 sm:py-4">
+                    activity
+                </h2>
+            </div>
+
+            <!-- 발음 재생 및 뜻 보기 버튼 영역 -->
+            <div class="flex flex-wrap items-center justify-center gap-3 mb-6 sm:mb-8">
+                <!-- 발음 재생 버튼 -->
+                <button onclick="playCurrentAudio()" class="group relative inline-flex items-center justify-center py-3.5 px-6 sm:p-5 overflow-hidden font-medium text-white transition-all duration-300 bg-indigo-600 rounded-2xl sm:rounded-3xl shadow-lg hover:bg-indigo-500 active:scale-95 focus:outline-none focus:ring-4 focus:ring-indigo-400 cursor-pointer">
+                    <span class="absolute top-0 right-0 w-12 h-12 -mt-3 -mr-3 bg-indigo-400 rounded-full blur opacity-50 group-hover:opacity-100 transition"></span>
+                    <svg class="w-6 h-6 sm:w-8 sm:h-8 mr-2 text-white animate-pulse" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path>
+                    </svg>
+                    <span class="text-base sm:text-xl font-bold">발음 듣기 (🔊)</span>
+                </button>
+
+                <!-- 뜻 보기 / 가리기 토글 버튼 -->
+                <button id="toggle-meaning-btn" onclick="toggleMeaning()" class="group relative inline-flex items-center justify-center py-3.5 px-6 sm:p-5 overflow-hidden font-medium text-white transition-all duration-300 bg-slate-800 hover:bg-slate-700 border border-slate-600 rounded-2xl sm:rounded-3xl shadow-lg active:scale-95 focus:outline-none focus:ring-4 focus:ring-slate-500 cursor-pointer">
+                    <span class="text-xl mr-2" id="toggle-meaning-icon">👁️</span>
+                    <span id="toggle-meaning-text" class="text-base sm:text-xl font-bold text-indigo-300">뜻 보기</span>
+                </button>
+            </div>
+
+            <!-- 뜻 영역 -->
+            <div class="w-full bg-slate-800/70 border border-slate-700/60 rounded-2xl p-5 sm:p-6 text-center mb-6 sm:mb-8 shadow-xl backdrop-blur-sm">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs uppercase tracking-wider text-slate-400 font-bold">뜻 (Meaning)</span>
+                    <span id="meaning-status-text" class="text-xs text-slate-400 font-semibold">버튼을 누르면 뜻이 공개됩니다</span>
+                </div>
+                <div id="meaning-display" class="text-xl sm:text-2xl md:text-3xl font-bold text-slate-500 tracking-wide py-2 blur-sm select-none transition-all duration-300 hidden">
+                    ???
+                </div>
+            </div>
+
+            <!-- 미암기 / 완료 버튼 -->
+            <div id="choice-buttons" class="grid grid-cols-2 gap-3 sm:gap-4 w-full">
+                <button onclick="recordStatus(false)" class="flex flex-col items-center justify-center p-4 sm:p-5 bg-rose-950/40 hover:bg-rose-900/60 border-2 border-rose-700/60 rounded-2xl transition-all duration-200 active:scale-95 group shadow-lg cursor-pointer">
+                    <span class="text-2xl sm:text-3xl mb-1">❌</span>
+                    <span class="text-lg sm:text-xl font-bold text-rose-300 group-hover:text-rose-200">미암기</span>
+                    <span class="text-[10px] sm:text-xs text-rose-400/80 mt-1">다시 학습 필요</span>
+                </button>
+                <button onclick="recordStatus(true)" class="flex flex-col items-center justify-center p-4 sm:p-5 bg-emerald-950/40 hover:bg-emerald-900/60 border-2 border-emerald-700/60 rounded-2xl transition-all duration-200 active:scale-95 group shadow-lg cursor-pointer">
+                    <span class="text-2xl sm:text-3xl mb-1">✅</span>
+                    <span class="text-lg sm:text-xl font-bold text-emerald-300 group-hover:text-emerald-200">완료</span>
+                    <span class="text-[10px] sm:text-xs text-emerald-400/80 mt-1">확실히 암기함</span>
+                </button>
+            </div>
+
+            <!-- 다음 단어 이동 및 그만하기 버튼 영역 -->
+            <div id="next-container" class="w-full hidden mt-4 flex flex-col sm:flex-row gap-3">
+                <button onclick="goToNextWord()" class="flex-1 py-3.5 sm:py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-lg sm:text-xl rounded-2xl shadow-xl transition-all flex items-center justify-center space-x-2 animate-bounce cursor-pointer active:scale-95">
+                    <span>다음 단어</span>
+                    <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </button>
+                <button onclick="stopAndShowSummary()" class="py-3.5 sm:py-4 px-6 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold text-base sm:text-lg rounded-2xl shadow-xl transition-all flex items-center justify-center space-x-2 cursor-pointer active:scale-95">
+                    <span>그만하기</span>
+                    <span>⏹️</span>
+                </button>
+            </div>
+
+            <!-- 단축키 안내 -->
+            <div class="mt-6 text-xs text-slate-500 text-center hidden sm:block">
+                단축키: <kbd class="bg-slate-800 px-2 py-1 rounded text-slate-400">1</kbd> 미암기 &nbsp;|&nbsp; <kbd class="bg-slate-800 px-2 py-1 rounded text-slate-400">2</kbd> 완료 &nbsp;|&nbsp; <kbd class="bg-slate-800 px-2 py-1 rounded text-slate-400">T</kbd> 뜻보기 &nbsp;|&nbsp; <kbd class="bg-slate-800 px-2 py-1 rounded text-slate-400">Space</kbd> 발음듣기 &nbsp;|&nbsp; <kbd class="bg-slate-800 px-2 py-1 rounded text-slate-400">Enter</kbd> 다음
+            </div>
+        </div>
+
+        <div id="summary-container" class="w-full hidden flex flex-col items-center">
+            <div class="bg-slate-800/80 border border-slate-700 rounded-3xl p-6 sm:p-8 w-full shadow-2xl text-center mb-6">
+                <div class="text-4xl sm:text-5xl mb-3">🎉</div>
+                <h2 class="text-2xl sm:text-3xl font-extrabold text-white mb-2">학습이 완료되었습니다!</h2>
+                <p class="text-sm sm:text-base text-slate-400 mb-6">오늘 암기한 단어의 결과를 확인해보세요.</p>
+
+                <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-6 sm:mb-8">
+                    <div class="bg-slate-900/80 p-3 sm:p-4 rounded-2xl border border-slate-700">
+                        <div class="text-[10px] sm:text-xs text-slate-400 font-semibold mb-1">학습한 단어</div>
+                        <div id="stat-total" class="text-xl sm:text-3xl font-black text-indigo-400">100</div>
+                    </div>
+                    <div class="bg-slate-900/80 p-3 sm:p-4 rounded-2xl border border-emerald-900/50">
+                        <div class="text-[10px] sm:text-xs text-emerald-400 font-semibold mb-1">이번 회차 완료</div>
+                        <div id="stat-completed" class="text-xl sm:text-3xl font-black text-emerald-400">0</div>
+                    </div>
+                    <div class="bg-slate-900/80 p-3 sm:p-4 rounded-2xl border border-rose-900/50">
+                        <div class="text-[10px] sm:text-xs text-rose-400 font-semibold mb-1">미암기</div>
+                        <div id="stat-uncompleted" class="text-xl sm:text-3xl font-black text-rose-400">0</div>
+                    </div>
+                </div>
+
+                <button onclick="restartApp()" class="w-full py-3.5 sm:py-4 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-2xl shadow-lg transition-all text-base sm:text-lg cursor-pointer active:scale-95">
+                    🔄 처음으로 돌아가기
+                </button>
+            </div>
+
+            <div class="w-full bg-slate-800/50 border border-slate-700/80 rounded-3xl p-5 sm:p-6 shadow-xl">
+                <h3 class="text-base sm:text-lg font-bold text-rose-400 mb-4 flex items-center">
+                    <span class="mr-2">📋</span> 이번 회차 미암기 단어 목록 (<span id="uncompleted-count-badge">0</span>개)
+                </h3>
+                <div id="uncompleted-list" class="max-h-64 sm:max-h-80 overflow-y-auto pr-2 space-y-2">
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 전체 단어 보기 모달 (All Words Modal) -->
+    <div id="all-words-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-800 border border-slate-700 rounded-3xl max-w-2xl w-full p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-4 pb-3 border-b border-slate-700">
+                <h3 class="text-xl font-bold text-white flex items-center">
+                    <span class="mr-2">📚</span> 전체 단어 및 암기 상태 (100개)
+                </h3>
+                <button onclick="closeAllWordsModal()" class="text-slate-400 hover:text-white p-1 rounded-lg transition">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+
+            <!-- 단어 검색창 -->
+            <div class="mb-4">
+                <input type="text" id="word-search-input" oninput="filterAllWords()" placeholder="🔍 단어 또는 뜻 검색..." class="w-full px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 text-sm">
+            </div>
+
+            <!-- 단어 목록 스크롤 영역 -->
+            <div id="all-words-list" class="flex-grow overflow-y-auto pr-2 space-y-2">
+                <!-- 동적 렌더링 -->
+            </div>
+
+            <div class="mt-4 pt-3 border-t border-slate-700 text-right">
+                <button onclick="closeAllWordsModal()" class="px-5 py-2.5 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition cursor-pointer active:scale-95 text-sm">
+                    닫기
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <footer class="w-full max-w-3xl mx-auto px-4 sm:px-6 py-4 text-center text-xs text-slate-500 border-t border-slate-800">
+        Day 15 영단어 학습 웹 애플리케이션 &copy; 2026
+    </footer>
+
+    <script>
+        // 사용자가 제공한 정확한 100개 단어 데이터셋
+        const originalVocabData = [
+            { id: 1, word: "refund", meaning: "환불하다, 환불" },
+            { id: 2, word: "get a refund", meaning: "환불받다" },
+            { id: 3, word: "return", meaning: "환불받다" },
+            { id: 4, word: "get back", meaning: "돌려받다, 돌아오다" },
+            { id: 5, word: "receipt", meaning: "영수증" },
+            { id: 6, word: "receive", meaning: "받다" },
+            { id: 7, word: "get", meaning: "받다" },
+            { id: 8, word: "price", meaning: "가격, 값" },
+            { id: 9, word: "cost", meaning: "가격, 값" },
+            { id: 10, word: "charge", meaning: "가격, 값" },
+            { id: 11, word: "exchange", meaning: "교환하다" },
+            { id: 12, word: "interchange", meaning: "교환하다" },
+            { id: 13, word: "trade", meaning: "교환하다" },
+            { id: 14, word: "spend", meaning: "(돈을) 쓰다" },
+            { id: 15, word: "expend", meaning: "(돈을) 쓰다" },
+            { id: 16, word: "spender", meaning: "(돈을) 쓰는 사람" },
+            { id: 17, word: "spending", meaning: "지출" },
+            { id: 18, word: "smart", meaning: "현명한, 영리한" },
+            { id: 19, word: "wise", meaning: "현명한" },
+            { id: 20, word: "clever", meaning: "영리한" },
+            { id: 21, word: "answer", meaning: "답하다" },
+            { id: 22, word: "result", meaning: "결과" },
+            { id: 23, word: "consequence", meaning: "결과" },
+            { id: 24, word: "effect", meaning: "결과" },
+            { id: 25, word: "outcome", meaning: "결과" },
+            { id: 26, word: "cause", meaning: "원인" },
+            { id: 27, word: "survey", meaning: "(설문) 조사" },
+            { id: 28, word: "while", meaning: "~하는 동안에" },
+            { id: 29, word: "worry", meaning: "걱정거리" },
+            { id: 30, word: "anxiety", meaning: "걱정거리" },
+            { id: 31, word: "enough", meaning: "충분한" },
+            { id: 32, word: "allowance", meaning: "용돈" },
+            { id: 33, word: "pocket money", meaning: "용돈" },
+            { id: 34, word: "lastly", meaning: "마지막으로" },
+            { id: 35, word: "finally", meaning: "마지막으로" },
+            { id: 36, word: "in conclusion", meaning: "마지막으로" },
+            { id: 37, word: "as a result", meaning: "결과적으로" },
+            { id: 38, word: "consequently", meaning: "결과적으로" },
+            { id: 39, word: "majority", meaning: "대다수" },
+            { id: 40, word: "minority", meaning: "소수" },
+            { id: 41, word: "manage", meaning: "관리하다" },
+            { id: 42, word: "supervise", meaning: "관리하다" },
+            { id: 43, word: "oversee", meaning: "관리하다" },
+            { id: 44, word: "effort", meaning: "노력" },
+            { id: 45, word: "take effort", meaning: "노력을 필요로 하다" },
+            { id: 46, word: "take care of", meaning: "~을 처리하다" },
+            { id: 47, word: "deal with", meaning: "~을 처리하다" },
+            { id: 48, word: "even if", meaning: "~에도 불구하고" },
+            { id: 49, word: "although", meaning: "~에도 불구하고" },
+            { id: 50, word: "though", meaning: "~에도 불구하고" },
+            { id: 51, word: "balance", meaning: "균형, 잔액" },
+            { id: 52, word: "equilibrium", meaning: "균형" },
+            { id: 53, word: "weekly", meaning: "매주, 주 1회의" },
+            { id: 54, word: "solve", meaning: "해결하다, 풀다" },
+            { id: 55, word: "work out", meaning: "해결하다" },
+            { id: 56, word: "resolve", meaning: "해결하다" },
+            { id: 57, word: "crack", meaning: "해결하다" },
+            { id: 58, word: "tip", meaning: "조언" },
+            { id: 59, word: "hint", meaning: "조언" },
+            { id: 60, word: "advice", meaning: "조언" },
+            { id: 61, word: "counsel", meaning: "조언" },
+            { id: 62, word: "divide", meaning: "나누다" },
+            { id: 63, word: "separate", meaning: "나누다" },
+            { id: 64, word: "split", meaning: "나누다" },
+            { id: 65, word: "divide A into B", meaning: "A를 B로 나누다" },
+            { id: 66, word: "carry", meaning: "나르다" },
+            { id: 67, word: "convey", meaning: "나르다" },
+            { id: 68, word: "take", meaning: "가지고 가다" },
+            { id: 69, word: "carry around", meaning: "가지고 다니다" },
+            { id: 70, word: "save", meaning: "(돈을) 저축하다, 모으다" },
+            { id: 71, word: "store", meaning: "저장하다, 축적하다" },
+            { id: 72, word: "collect", meaning: "모으다" },
+            { id: 73, word: "gather", meaning: "모으다" },
+            { id: 74, word: "last", meaning: "지난" },
+            { id: 75, word: "past", meaning: "지난" },
+            { id: 76, word: "tight", meaning: "(여유가 없이) 빡빡한" },
+            { id: 77, word: "loose", meaning: "느슨한" },
+            { id: 78, word: "budget", meaning: "예산" },
+            { id: 79, word: "donate", meaning: "기부하다, 기증하다" },
+            { id: 80, word: "contribute", meaning: "기부하다" },
+            { id: 81, word: "subscribe", meaning: "기부하다, 구독하다" },
+            { id: 82, word: "charity", meaning: "자선단체" },
+            { id: 83, word: "charitable", meaning: "자선의" },
+            { id: 84, word: "remaining", meaning: "남아있는, 남은" },
+            { id: 85, word: "spare", meaning: "남은, 여분의" },
+            { id: 86, word: "left", meaning: "남은" },
+            { id: 87, word: "be gone", meaning: "사라지다, 없어지다" },
+            { id: 88, word: "disappear", meaning: "사라지다, 없어지다" },
+            { id: 89, word: "be lost", meaning: "사라지다, 없어지다" },
+            { id: 90, word: "vanish", meaning: "사라지다, 없어지다" },
+            { id: 91, word: "use up", meaning: "다 써 버리다" },
+            { id: 92, word: "exhaust", meaning: "다 써 버리다" },
+            { id: 93, word: "run out of", meaning: "다 써 버리다" },
+            { id: 94, word: "look good on", meaning: "~와 잘 어울리다" },
+            { id: 95, word: "get along with", meaning: "~와 잘 어울리다" },
+            { id: 96, word: "have difficulty -ing", meaning: "어려움을 겪다" },
+            { id: 97, word: "on the spot", meaning: "즉석에서, 즉각" },
+            { id: 98, word: "immediately", meaning: "즉각" },
+            { id: 99, word: "on sale", meaning: "할인 중인" },
+            { id: 100, word: "make a list", meaning: "목록을 만들다" }
+        ];
+
+        let vocabData = [];
+        let currentIndex = 0;
+        let userResults = {}; 
+        let isAnswered = false;
+        let isMeaningRevealed = false;
+
+        function startLearning(isRandom) {
+            let baseData = [...originalVocabData];
+            
+            // 1. 이미 암기 완료한 단어 건너뛰기 옵션 처리
+            const skipCompleted = document.getElementById('skip-completed-checkbox').checked;
+            let completedSet = JSON.parse(localStorage.getItem('completedVocabIds') || '[]');
+            
+            if (skipCompleted) {
+                baseData = baseData.filter(item => !completedSet.includes(item.id));
+            }
+
+            if (baseData.length === 0) {
+                alert('학습할 단어가 없습니다! 모든 단어를 이미 암기 완료하셨거나 초기화가 필요합니다.');
+                return;
+            }
+
+            // 2. 시작 단어 번호 위치부터 시작하도록 처리
+            const startNumInput = parseInt(document.getElementById('start-number-input').value) || 1;
+            
+            if (!isRandom) {
+                // 순서대로 학습: 입력한 시작 번호(id) 이상인 단어부터 필터링
+                const startIndex = baseData.findIndex(item => item.id >= startNumInput);
+                if (startIndex !== -1) {
+                    baseData = baseData.slice(startIndex);
+                } else {
+                    baseData = [];
+                }
+            } else {
+                // 랜덤 학습
+                for (let i = baseData.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [baseData[i], baseData[j]] = [baseData[j], baseData[i]];
+                }
+            }
+
+            if (baseData.length === 0) {
+                alert('설정한 시작 번호 이후에 학습할 단어가 없습니다.');
+                return;
+            }
+
+            vocabData = baseData;
+            currentIndex = 0;
+            userResults = {};
+
+            document.getElementById('mode-select-container').classList.add('hidden');
+            document.getElementById('study-container').classList.remove('hidden');
+            document.getElementById('progress-indicator').classList.remove('hidden');
+
+            renderCurrentWord();
+        }
+
+        // 암기 완료 기록 초기화 함수
+        function resetCompletedMemory() {
+            if (confirm('저장된 암기 완료 기록을 모두 초기화하시겠습니까?')) {
+                localStorage.removeItem('completedVocabIds');
+                alert('암기 완료 기록이 초기화되었습니다.');
+            }
+        }
+
+        function renderCurrentWord() {
+            if (currentIndex >= vocabData.length) {
+                showSummaryPage();
+                return;
+            }
+
+            isAnswered = false;
+            isMeaningRevealed = false;
+            const currentItem = vocabData[currentIndex];
+            
+            document.getElementById('progress-indicator').innerText = `${currentIndex + 1} / ${vocabData.length}`;
+            document.getElementById('word-meta').innerText = `Word #${currentItem.id}`;
+            document.getElementById('word-display').innerText = currentItem.word;
+            
+            const meaningEl = document.getElementById('meaning-display');
+            meaningEl.innerText = currentItem.meaning;
+            meaningEl.classList.add('blur-sm', 'select-none', 'text-slate-500', 'hidden');
+            meaningEl.classList.remove('text-indigo-300', 'text-emerald-400');
+            
+            document.getElementById('meaning-status-text').innerText = '버튼을 누르면 뜻이 공개됩니다';
+
+            updateToggleMeaningButtonUI(false);
+
+            document.getElementById('choice-buttons').classList.remove('hidden');
+            document.getElementById('next-container').classList.add('hidden');
+
+            document.getElementById('study-container').classList.remove('hidden');
+            document.getElementById('summary-container').classList.add('hidden');
+
+            setTimeout(() => {
+                playCurrentAudio();
+            }, 300);
+        }
+
+        function toggleMeaning() {
+            if (isAnswered) return;
+
+            isMeaningRevealed = !isMeaningRevealed;
+            const meaningEl = document.getElementById('meaning-display');
+            const currentItem = vocabData[currentIndex];
+
+            if (isMeaningRevealed) {
+                meaningEl.classList.remove('blur-sm', 'select-none', 'text-slate-500', 'hidden');
+                meaningEl.classList.add('text-indigo-300');
+                document.getElementById('meaning-status-text').innerText = '뜻이 공개되었습니다';
+                speakKoreanText(currentItem.meaning);
+            } else {
+                meaningEl.classList.add('blur-sm', 'select-none', 'text-slate-500', 'hidden');
+                meaningEl.classList.remove('text-indigo-300');
+                document.getElementById('meaning-status-text').innerText = '버튼을 누르면 뜻이 공개됩니다';
+            }
+
+            updateToggleMeaningButtonUI(isMeaningRevealed);
+        }
+
+        function updateToggleMeaningButtonUI(revealed) {
+            const btnText = document.getElementById('toggle-meaning-text');
+            const btnIcon = document.getElementById('toggle-meaning-icon');
+            if (revealed) {
+                btnText.innerText = '뜻 가리기';
+                btnIcon.innerText = '🙈';
+            } else {
+                btnText.innerText = '뜻 보기';
+                btnIcon.innerText = '👁️';
+            }
+        }
+
+        function getPreferredFemaleEnglishVoice() {
+            if (!('speechSynthesis' in window)) return null;
+
+            const voices = window.speechSynthesis.getVoices();
+            const englishVoices = voices.filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
+
+            const femalePatterns = [
+                'female', 'samantha', 'karen', 'moira', 'tessa', 'victoria',
+                'zira', 'susan', 'hazel', 'siri', 'google us english',
+                'google uk english female', 'ava', 'allison'
+            ];
+
+            const femaleVoice = englishVoices.find(v => {
+                const name = v.name.toLowerCase();
+                return femalePatterns.some(pattern => name.includes(pattern));
+            });
+
+            if (femaleVoice) return femaleVoice;
+
+            const preferredEnglishVoice = englishVoices.find(v => {
+                const name = v.name.toLowerCase();
+                return name.includes('google') || name.includes('microsoft');
+            });
+
+            return preferredEnglishVoice || englishVoices.find(v => v.lang.toLowerCase() === 'en-us') || englishVoices[0] || null;
+        }
+
+        function speakEnglishWord(word) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(word);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.85;
+                utterance.pitch = 1.05;
+
+                const voice = getPreferredFemaleEnglishVoice();
+                if (voice) {
+                    utterance.voice = voice;
+                    utterance.lang = voice.lang;
+                }
+
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function speakKoreanText(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'ko-KR';
+                utterance.rate = 1.0;
+                utterance.pitch = 1.0;
+
+                const voices = window.speechSynthesis.getVoices();
+                const koreanVoice = voices.find(v => v.lang && v.lang.toLowerCase().includes('ko'));
+                if (koreanVoice) {
+                    utterance.voice = koreanVoice;
+                }
+
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function playCurrentAudio() {
+            const currentItem = vocabData[currentIndex];
+            speakEnglishWord(currentItem.word);
+        }
+
+        // 암기 상태 기록 및 localStorage 저장
+        function recordStatus(isCompleted) {
+            if (isAnswered) return;
+            isAnswered = true;
+
+            userResults[currentIndex] = isCompleted;
+            const currentItem = vocabData[currentIndex];
+
+            let completedSet = JSON.parse(localStorage.getItem('completedVocabIds') || '[]');
+            if (isCompleted) {
+                if (!completedSet.includes(currentItem.id)) {
+                    completedSet.push(currentItem.id);
+                }
+            } else {
+                completedSet = completedSet.filter(id => id !== currentItem.id);
+            }
+            localStorage.setItem('completedVocabIds', JSON.stringify(completedSet));
+
+            const meaningEl = document.getElementById('meaning-display');
+            meaningEl.classList.remove('blur-sm', 'select-none', 'text-slate-500', 'text-indigo-300', 'hidden');
+            meaningEl.classList.add('text-emerald-400');
+            
+            document.getElementById('meaning-status-text').innerText = isCompleted ? '✅ 완료로 체크되었습니다 (저장됨)' : '❌ 미암기로 체크되었습니다';
+
+            document.getElementById('choice-buttons').classList.add('hidden');
+            document.getElementById('next-container').classList.remove('hidden');
+        }
+
+        function goToNextWord() {
+            currentIndex++;
+            renderCurrentWord();
+        }
+
+        function stopAndShowSummary() {
+            vocabData = vocabData.slice(0, currentIndex + 1);
+            showSummaryPage();
+        }
+
+        function showSummaryPage() {
+            document.getElementById('study-container').classList.add('hidden');
+            document.getElementById('summary-container').classList.remove('hidden');
+            document.getElementById('progress-indicator').innerText = '학습 완료';
+
+            let completedCount = 0;
+            let uncompletedListHTML = '';
+            let uncompletedCount = 0;
+
+            vocabData.forEach((item, index) => {
+                const status = userResults[index];
+                if (status === true) {
+                    completedCount++;
+                } else {
+                    uncompletedCount++;
+                    uncompletedListHTML += `
+                        <div class="flex justify-between items-center bg-slate-900/70 p-3.5 rounded-xl border border-rose-900/30 hover:border-rose-700/50 transition">
+                            <div class="flex items-center space-x-3 truncate mr-2">
+                                <span class="text-xs font-bold text-slate-500 w-8 shrink-0">#${item.id}</span>
+                                <span class="text-base sm:text-lg font-bold text-white truncate">${item.word}</span>
+                                <span class="text-xs sm:text-sm text-slate-400 truncate">(${item.meaning})</span>
+                            </div>
+                            <button onclick="playSpecificAudio('${item.word}')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-semibold rounded-lg transition flex items-center shrink-0 cursor-pointer active:scale-95">
+                                🔊 듣기
+                            </button>
+                        </div>
+                    `;
+                }
+            });
+
+            document.getElementById('stat-total').innerText = vocabData.length;
+            document.getElementById('stat-completed').innerText = completedCount;
+            document.getElementById('stat-uncompleted').innerText = uncompletedCount;
+            document.getElementById('uncompleted-count-badge').innerText = uncompletedCount;
+
+            const listContainer = document.getElementById('uncompleted-list');
+            if (uncompletedCount === 0) {
+                listContainer.innerHTML = `
+                    <div class="text-center py-8 text-emerald-400 font-semibold text-sm sm:text-base">
+                        🎉 이번 학습에서 모든 단어를 완벽하게 암기하셨습니다!
+                    </div>
+                `;
+            } else {
+                listContainer.innerHTML = uncompletedListHTML;
+            }
+        }
+
+        function playSpecificAudio(word) {
+            speakEnglishWord(word);
+        }
+
+        function restartApp() {
+            document.getElementById('summary-container').classList.add('hidden');
+            document.getElementById('mode-select-container').classList.remove('hidden');
+            document.getElementById('progress-indicator').classList.add('hidden');
+        }
+
+        // 전체 단어 보기 모달 제어 함수들 (암기 상태 표시 포함)
+        function openAllWordsModal() {
+            document.getElementById('word-search-input').value = '';
+            renderAllWordsList(originalVocabData);
+            document.getElementById('all-words-modal').classList.remove('hidden');
+        }
+
+        function closeAllWordsModal() {
+            document.getElementById('all-words-modal').classList.add('hidden');
+        }
+
+        function renderAllWordsList(list) {
+            const container = document.getElementById('all-words-list');
+            if (list.length === 0) {
+                container.innerHTML = `<div class="text-center py-8 text-slate-500 text-sm">검색 결과가 없습니다.</div>`;
+                return;
+            }
+
+            let completedSet = JSON.parse(localStorage.getItem('completedVocabIds') || '[]');
+
+            let html = '';
+            list.forEach(item => {
+                const isCompleted = completedSet.includes(item.id);
+                const badgeHTML = isCompleted 
+                    ? `<span class="text-[10px] bg-emerald-950/80 text-emerald-400 px-2 py-0.5 rounded-md border border-emerald-800/50 font-semibold shrink-0">완료됨</span>` 
+                    : `<span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded-md border border-slate-700 shrink-0">학습 전</span>`;
+
+                html += `
+                    <div class="flex justify-between items-center bg-slate-900/70 p-3 rounded-xl border border-slate-700/60 hover:border-indigo-500/50 transition">
+                        <div class="flex items-center space-x-3 truncate mr-2">
+                            <span class="text-xs font-bold text-slate-500 w-8 shrink-0">#${item.id}</span>
+                            <span class="text-base font-bold text-white truncate">${item.word}</span>
+                            <span class="text-xs sm:text-sm text-indigo-300 truncate">(${item.meaning})</span>
+                            ${badgeHTML}
+                        </div>
+                        <button onclick="playSpecificAudio('${item.word}')" class="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-semibold rounded-lg transition flex items-center shrink-0 cursor-pointer active:scale-95">
+                            🔊 듣기
+                        </button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function filterAllWords() {
+            const query = document.getElementById('word-search-input').value.toLowerCase().trim();
+            const filtered = originalVocabData.filter(item => 
+                item.word.toLowerCase().includes(query) || item.meaning.includes(query)
+            );
+            renderAllWordsList(filtered);
+        }
+
+        window.addEventListener('keydown', (e) => {
+            const studyContainer = document.getElementById('study-container');
+            const modalOpen = !document.getElementById('all-words-modal').classList.contains('hidden');
+
+            if (modalOpen) {
+                if (e.key === 'Escape') {
+                    closeAllWordsModal();
+                }
+                return;
+            }
+
+            if (studyContainer.classList.contains('hidden')) return;
+
+            if (!isAnswered) {
+                if (e.key === '1') {
+                    recordStatus(false);
+                } else if (e.key === '2') {
+                    recordStatus(true);
+                } else if (e.key.toLowerCase() === 't') {
+                    toggleMeaning();
+                } else if (e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    playCurrentAudio();
+                }
+            } else {
+                if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    goToNextWord();
+                }
+            }
+        });
+    </script>
+</body>
+</html>
